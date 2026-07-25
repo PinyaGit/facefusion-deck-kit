@@ -112,22 +112,6 @@ python facefusion.py run --config-path facefusion.balanced.ini
 
 `…/deck-kit-backup/<timestamp>/`
 
-## Что именно меняется
-
-```
-<pinokio-app>/
-  run.js                          ← overlay
-  menu.js                         ← overlay
-  facefusion/
-    facefusion.ini                ← = balanced
-    facefusion.fast.ini           ← new
-    facefusion.balanced.ini       ← new
-    facefusion.quality.ini        ← new
-    facefusion/
-      content_analyser.py         ← patch detect_nsfw
-      core.py                     ← patch common_pre_check hash
-```
-
 Патч NSFW идемпотентный (повторный запуск безопасен).
 
 ## После Update / Reset в Pinokio
@@ -171,14 +155,6 @@ facefusion-deck-kit/
         └── facefusion.quality.ini
 ```
 
-## Совместимость
-
-| Версия FaceFusion | Статус |
-|-------------------|--------|
-| 3.6.1 | протестировано |
-| 3.5–3.6.x | обычно ок (патч по сигнатурам) |
-| 4.x | может сломаться — проверь `patch_nsfw.py` |
-
 ## Откат
 
 ```powershell
@@ -197,7 +173,3 @@ Copy-Item "$b\facefusion__core.py" "C:\pinokio\api\facefusion-pinokio.git\facefu
 - NSFW-фильтр отключается **осознанно** — ответственность на тебе.
 - Соблюдай лицензию FaceFusion и законы своей страны.
 - Авторы kit не связаны с facefusion.io / официальным проектом.
-
-## Репозиторий
-
-**https://github.com/PinyaGit/facefusion-deck-kit**
