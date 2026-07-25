@@ -47,7 +47,7 @@
 2. Скачай этот репозиторий:
 
 ```powershell
-git clone https://github.com/<YOU>/facefusion-deck-kit.git
+git clone https://github.com/PinyaGit/facefusion-deck-kit.git
 cd facefusion-deck-kit
 ```
 
@@ -198,14 +198,6 @@ Copy-Item "$b\facefusion__core.py" "C:\pinokio\api\facefusion-pinokio.git\facefu
 - Соблюдай лицензию FaceFusion и законы своей страны.
 - Авторы kit не связаны с facefusion.io / официальным проектом.
 
-## Публикация на GitHub
+## Репозиторий
 
-```bash
-cd facefusion-deck-kit
-git init
-git add .
-git commit -m "Initial facefusion-deck-kit for Steam Deck / Pinokio"
-gh repo create facefusion-deck-kit --public --source=. --push
-```
-
-Замени в этом README `https://github.com/<YOU>/facefusion-deck-kit.git` на свой URL.
+**https://github.com/PinyaGit/facefusion-deck-kit**
