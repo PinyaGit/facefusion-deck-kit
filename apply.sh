@@ -44,6 +44,7 @@ done
 detect_target() {
   local c
   for c in \
+    "$HOME/facefusion" \
     "$HOME/pinokio/api/facefusion-pinokio.git" \
     "$HOME/.pinokio/api/facefusion-pinokio.git" \
     "/pinokio/api/facefusion-pinokio.git"
@@ -103,9 +104,25 @@ if [[ $SKIP_PROFILES -eq 0 ]]; then
     backup_file "$dest"
     if [[ $DRY_RUN -eq 0 ]]; then
       cp -f "$ini" "$dest"
+      if [[ "$(uname -s)" == Linux ]]; then
+        # DirectML is Windows-only. Native SteamOS / Linux uses CPU onnxruntime.
+        sed -i \
+          -e "s|^temp_path =.*|temp_path = ${FACE_ROOT}/.tmp|" \
+          -e "s|^jobs_path =.*|jobs_path = ${FACE_ROOT}/.jobs|" \
+          -e "s|^execution_providers =.*|execution_providers = cpu|" \
+          -e "s|^execution_thread_count =.*|execution_thread_count = 4|" \
+          "$dest"
+        echo "  copied $(basename "$ini") (linux: cpu, 4 threads)"
+      else
+        echo "  copied $(basename "$ini")"
+      fi
+    else
+      echo "  copied $(basename "$ini")"
     fi
-    echo "  copied $(basename "$ini")"
   done
+  if [[ $DRY_RUN -eq 0 ]]; then
+    mkdir -p "$FACE_ROOT/.tmp" "$FACE_ROOT/.jobs"
+  fi
 fi
 
 if [[ $SKIP_PINOKIO -eq 0 && "$layout" == "pinokio" ]]; then
@@ -126,7 +143,15 @@ fi
 if [[ $SKIP_NSFW -eq 0 ]]; then
   echo "==> Patching NSFW filter"
   PYTHON=""
-  for p in "$TARGET/.env/bin/python" "$TARGET/.env/python.exe" "$TARGET/facefusion/.env/bin/python" "python3" "python"; do
+  for p in \
+    "$HOME/miniforge3/envs/facefusion/bin/python" \
+    "$HOME/miniconda3/envs/facefusion/bin/python" \
+    "$TARGET/.env/bin/python" \
+    "$TARGET/.env/python.exe" \
+    "$TARGET/facefusion/.env/bin/python" \
+    "python3" \
+    "python"
+  do
     if [[ "$p" == python* ]]; then
       command -v "$p" >/dev/null 2>&1 && { PYTHON="$p"; break; }
     elif [[ -x "$p" ]]; then
@@ -151,9 +176,15 @@ echo "Done."
 echo "Backups: $BACKUP"
 echo
 echo "Next steps:"
-echo "  1. Stop FaceFusion if running"
-echo "  2. In Pinokio pick Fast / Balanced / Quality"
-echo "  3. After Update/Reset, re-run this script"
-echo
-echo "Standalone:"
-echo "  python facefusion.py run --config-path facefusion.balanced.ini"
+if [[ "$layout" == "pinokio" ]]; then
+  echo "  1. Stop FaceFusion if running"
+  echo "  2. In Pinokio pick Fast / Balanced / Quality"
+  echo "  3. After Update/Reset, re-run this script"
+else
+  echo "  Native launcher:"
+  echo "    $TARGET/run-facefusion.sh            # menu / Balanced"
+  echo "    $TARGET/run-facefusion.sh fast"
+  echo "    $TARGET/run-facefusion.sh quality"
+  echo "  Or:"
+  echo "    python facefusion.py run --open-browser --config-path facefusion.balanced.ini"
+fi

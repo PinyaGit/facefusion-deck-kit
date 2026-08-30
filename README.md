@@ -1,15 +1,19 @@
 # facefusion-deck-kit
 
-Готовый набор патчей и профилей **поверх чистого** [FaceFusion](https://github.com/facefusion/facefusion) (в т.ч. установка через [Pinokio](https://pinokio.computer/)).
+Готовый набор патчей и профилей **поверх чистого** [FaceFusion](https://github.com/facefusion/facefusion).
 
-Ориентирован на **Steam Deck / слабый AMD iGPU (DirectML)**, но ставится на любой Windows/Linux с FaceFusion 3.6.x.
+Ориентирован на **Steam Deck**. Два пути:
 
-> **Не является** форком FaceFusion. Скрипт только накладывает файлы и точечные правки на уже установленную копию.
+1. **Нативно на SteamOS** (рекомендуется, если нет Pinokio) — `install-native.sh`
+2. **Поверх Pinokio / уже установленного FaceFusion 3.6.x** — `apply.sh` / `apply.ps1`
+
+> **Не является** форком FaceFusion. Скрипты ставят официальный 3.6.1 в `$HOME` и/или накладывают файлы на уже установленную копию.
 
 ## Что внутри
 
 | Компонент | Описание |
 |-----------|----------|
+| **Native SteamOS** | Miniforge + Python 3.12 + FaceFusion 3.6.1 + ярлык, всё в `$HOME`, без sudo и Pinokio |
 | **NSFW patch** | `detect_nsfw()` → всегда `False` + отключение hash-проверки `content_analyser` |
 | **Pinokio** | `run.js` без `git checkout` (патчи не сбрасываются), меню профилей |
 | **Профили** | `facefusion.fast.ini` / `balanced.ini` / `quality.ini` |
@@ -18,30 +22,62 @@
 ### Профили качества
 
 | Профиль | Назначение | Swapper | Extra |
-|---------|------------|---------|--------|
+|---------|------------|---------|-------|
 | **Fast** | превью, батарея | inswapper 128 fp16 @ 128 | только swap |
 | **Balanced** | обычная работа | inswapper 128 fp16 @ 256 | + expression_restorer |
 | **Quality** | финал | hyperswap 256 @ 256 | + expression_restorer + gfpgan, occlusion |
 
 Общее для профилей Deck:
 
-- `execution_providers = directml` (Windows AMD)
-- `execution_thread_count = 2–3`
 - `video_memory_strategy = strict`
 - `system_memory_limit = 8`
 - `temp_frame_format = png`
 - encode: `libx264` + `ultrafast` / `veryfast`
+- **Windows / Pinokio:** `execution_providers = directml`, 2 потока
+- **Linux / SteamOS native:** `apply.sh` сам ставит `cpu`, 4 потока (DirectML на Linux нет)
 
-## Требования
+## Нативно на Steam Deck (SteamOS)
 
-1. Уже установлен **FaceFusion 3.6.x** (рекомендуется **3.6.1**).
-2. Вариант A: **Pinokio** → приложение `facefusion-pinokio`.
-3. Вариант B: обычный clone FaceFusion + свой Python/venv.
-4. Python 3.10+ (для скрипта патча; подойдёт env из Pinokio).
+Нужны `git`, `curl`, `ffmpeg` (на SteamOS они уже есть). Интернет. Место в `/home` (~3 ГБ на env + модели при первом запуске). Корневую систему скрипт **не трогает**.
 
-## Установка
+```bash
+git clone https://github.com/PinyaGit/facefusion-deck-kit.git
+cd facefusion-deck-kit
+chmod +x install-native.sh
+./install-native.sh
+```
 
-### Windows (Pinokio / Steam Deck Windows)
+Повторный запуск безопасен: недостающее доставит, overlay наложит снова.
+
+Запуск:
+
+- ярлык **FaceFusion** на рабочем столе / в меню KDE
+- или:
+
+```bash
+facefusion              # меню профилей, по умолчанию Balanced
+facefusion fast
+facefusion quality
+```
+
+Первый старт UI качает модели (сотни МБ) — нужен интернет, лучше на зарядке.
+
+Переменные:
+
+| Env / флаг | Смысл | По умолчанию |
+|------------|--------|--------------|
+| `FACEFUSION_HOME` / `--prefix` | куда класть FaceFusion | `~/facefusion` |
+| `CONDA_ROOT` / `--conda-root` | Miniforge | `~/miniforge3` |
+| `--force-deps` | заново прогнать `install.py` | выкл |
+| `--skip-desktop` | не писать `.desktop` и symlink | выкл |
+
+### GPU на SteamOS
+
+DirectML — это **Windows**. На SteamOS APU Van Gogh / Sephiroth официальный ROCm не ставится в пользовательский home без контейнера, поэтому native-установщик использует **CPU onnxruntime**.
+
+Картинки рабочие. Видео медленнее, чем на Windows+DirectML: Fast/Balanced для повседневки, Quality — финал/кадры. Держи Deck на зарядке + Performance.
+
+## Windows (Pinokio / Steam Deck Windows)
 
 1. Установи FaceFusion в Pinokio как обычно (Install → дождись конца).
 2. Скачай этот репозиторий:
@@ -73,7 +109,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 4. В Pinokio **полностью останови** FaceFusion и запусти снова:
    - **Fast (Deck)** / **Balanced (Deck)** / **Quality (Deck)**
 
-### Linux / SteamOS
+## Linux Pinokio / уже есть FaceFusion
 
 ```bash
 chmod +x apply.sh
@@ -82,7 +118,7 @@ chmod +x apply.sh
 ./apply.sh --target "$HOME/pinokio/api/facefusion-pinokio.git"
 ```
 
-### Без Pinokio (standalone FaceFusion)
+Standalone:
 
 ```powershell
 .\apply.ps1 -Target "D:\facefusion" -SkipPinokio
@@ -92,14 +128,13 @@ chmod +x apply.sh
 ./apply.sh --target ~/facefusion --skip-pinokio
 ```
 
-Запуск:
+Запуск без лаунчера:
 
 ```bash
-python facefusion.py run --config-path facefusion.balanced.ini
-# или facefusion.fast.ini / facefusion.quality.ini
+python facefusion.py run --open-browser --config-path facefusion.balanced.ini
 ```
 
-### Опции
+### Опции apply
 
 | apply.ps1 | apply.sh | Смысл |
 |-----------|----------|--------|
@@ -108,28 +143,30 @@ python facefusion.py run --config-path facefusion.balanced.ini
 | `-SkipPinokio` | `--skip-pinokio` | не трогать `run.js`/`menu.js` |
 | `-WhatIf` | `--dry-run` | только проверка |
 
-Перед записью файлы копируются в:
-
-`…/deck-kit-backup/<timestamp>/`
+Перед записью файлы копируются в `…/deck-kit-backup/<timestamp>/`.
 
 Патч NSFW идемпотентный (повторный запуск безопасен).
 
-## После Update / Reset в Pinokio
+## После Update / Reset
 
-Pinokio Update/Reset или ручной `git checkout` внутри `facefusion/` **сотрёт** правки.
-
-Снова:
+Pinokio Update/Reset или `git checkout` внутри `facefusion/` **сотрёт** правки.
 
 ```powershell
 .\apply.ps1 -Target "C:\pinokio\api\facefusion-pinokio.git"
 ```
 
-`run.js` из набора **отключает** шаг `git checkout` при каждом Run — иначе NSFW и ini слетают на старте.
+```bash
+~/facefusion/reapply-deck-kit.sh
+# или
+./apply.sh --target ~/facefusion --skip-pinokio
+```
+
+`run.js` из набора **отключает** шаг `git checkout` при каждом Run в Pinokio — иначе NSFW и ini слетают на старте.
 
 ## Советы по Steam Deck
 
 - Для рта/мимики: **Balanced** или **Quality** (`expression_restorer`).
-- Прыжки «своп ↔ оригинал» при повороте: в профилях стоит `face_selector_mode = one` (один человек в кадре).  
+- Прыжки «своп ↔ оригинал» при повороте: в профилях стоит `face_selector_mode = one` (один человек в кадре).
   Несколько людей → в UI: mode **reference**, **Reference Face Distance ~0.55–0.65**.
 - Quality первый раз качает hyperswap / gfpgan / live_portrait — нужен интернет.
 - Держи Deck на зарядке + Performance mode для длинных роликов.
@@ -140,10 +177,12 @@ Pinokio Update/Reset или ручной `git checkout` внутри `facefusion
 facefusion-deck-kit/
 ├── README.md
 ├── LICENSE
-├── apply.ps1                 # Windows installer
-├── apply.sh                  # Linux/macOS installer
+├── install-native.sh         # SteamOS / Linux: полная нативная установка
+├── apply.ps1                 # Windows overlay (Pinokio / standalone)
+├── apply.sh                  # Linux overlay + CPU-адаптация ini
 ├── scripts/
-│   └── patch_nsfw.py         # точечный патч Python-исходников
+│   ├── patch_nsfw.py         # точечный патч Python-исходников
+│   └── run-facefusion.sh     # лаунчер профилей (копируется в ~/facefusion)
 └── overlay/
     ├── pinokio/
     │   ├── run.js
@@ -165,7 +204,7 @@ Copy-Item "$b\facefusion__core.py" "C:\pinokio\api\facefusion-pinokio.git\facefu
 # и т.д. для run.js / menu.js / ini
 ```
 
-Либо Pinokio → **Reset** / переустановка приложения.
+Нативно: удали `~/facefusion` и при желании conda-env `facefusion` / `~/miniforge3`. Либо Pinokio → **Reset**.
 
 ## Дисклеймер
 
